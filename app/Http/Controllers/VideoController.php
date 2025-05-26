@@ -23,18 +23,39 @@ class VideoController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'video' => 'required|file|mimetypes:video/mp4,video/avi,video/mpeg,video/quicktime|max:51200', // max 50MB
+            'video' => 'required|file|mimetypes:video/mp4,video/avi,video/mpeg,video/quicktime|max:512000', // max 500MB
         ]);
 
-        $path = $request->file('video')->store('videos', 'public');
+        $original = $request->file('video');
+        $originalPath = $original->store('videos/original', 'public');
+
+        $originalFullPath = storage_path("app/public/{$originalPath}");
+        $compressedFileName = 'compressed_' . uniqid() . '.mp4';
+        $compressedPath = storage_path("app/public/videos/compressed/{$compressedFileName}");
+
+        // Ensure output directory exists
+        if (!file_exists(dirname($compressedPath))) {
+            mkdir(dirname($compressedPath), 0755, true);
+        }
+
+        // Compress using ffmpeg
+        $ffmpegCommand = "ffmpeg -i {$originalFullPath} -vcodec libx264 -crf 28 -preset veryfast -y {$compressedPath}";
+        exec($ffmpegCommand);
+
+        // Optional: delete original video after compression
+        \Storage::disk('public')->delete($originalPath);
+
+        // Save only the compressed file path
+        $publicPath = 'videos/compressed/' . $compressedFileName;
 
         Video::create([
             'title' => $request->title,
-            'video_path' => $path,
+            'video_path' => $publicPath,
         ]);
 
-        return redirect()->route('videos.index')->with('success', 'Video uploaded successfully.');
+        return redirect()->route('videos.index')->with('success', 'Video uploaded and compressed successfully.');
     }
+
 
     public function show(Video $video)
     {
@@ -75,4 +96,3 @@ class VideoController extends Controller
         return redirect()->route('videos.index')->with('success', 'Video deleted.');
     }
 }
-
