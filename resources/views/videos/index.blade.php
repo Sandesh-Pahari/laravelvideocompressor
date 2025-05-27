@@ -29,13 +29,13 @@
             <p>Original: {{ $video->original_size }} MB</p>
             <p>Compressed: {{ $video->compressed_size }} MB</p>
         @endif
+        <form action="{{ route('videos.destroy', $video) }}" method="POST" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit">Delete</button>
+            </form>
     </div>
-    
+
 @endforeach
-
-
-
-
-
     {{ $videos->links() }}
 @endsection
